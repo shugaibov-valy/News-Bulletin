@@ -2,6 +2,8 @@
 
 EXE application on PyQT, SQL - 'news Bulletin' based on parsing news from the site https://news.rambler.ru/regions/.
 
+![](https://github.com/shugaibov-valy/News-Bulletin/blob/master/screen_project.png)
+
 # requirements.txt 
 
  - requests~=2.22.0
