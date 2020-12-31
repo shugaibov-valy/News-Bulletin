@@ -1,4 +1,3 @@
-# News-Bulletin
 # Descrition
 
 EXE application on PyQT, SQL - 'news Bulletin' based on parsing news from the site https://news.rambler.ru/regions/.
