@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-
 import sys
 import sqlite3
 import requests
-import re
-import json
 from bs4 import BeautifulSoup as BS
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication
+from style import style_css
+from functions import uploading_post, uploading_json, completion_comboBox
 
 
 class Ui_MainWindow(object):
@@ -60,7 +59,6 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -71,78 +69,45 @@ class Ui_MainWindow(object):
         self.label.setText(_translate("MainWindow", "Новости"))
         self.pushButton.setText(_translate("MainWindow", "Выбрать"))
         self.pushButton.clicked.connect(self.choose_city)
-        self.pushButton_2.clicked.connect(self.choose_title_post)
-        con = sqlite3.connect('ParseNews.sqlite')
-        cur = con.cursor()
-        cities_and_countries = cur.execute("""SELECT city_name FROM 'Список городов и стран'""").fetchall()
-        for i in cities_and_countries:
-            self.comboBox.addItem(i[0])
-        con.close()
+        self.pushButton_2.clicked.connect(self.choose_post)
+        completion_comboBox(self.comboBox)
 
     def choose_city(self):
-        self.current = self.comboBox.currentText()
-        try:       # проверяем на подключение интернета
+        self.city = self.comboBox.currentText()
+        try:       # check for internet connection
             r = requests.get('https://news.rambler.ru/regions/')
             html = BS(r.content, 'html.parser')
-            for city_name in html.find_all('a', 'j-regions__link'):
-                if city_name.contents[0].strip('\n') == self.current:
-                    city_url = 'https://news.rambler.ru' + city_name.get('href') + '?updated'
-
-            def prov_print():
-                ssilka_post = json.loads(my_json)['itemListElement'][i]['url']
-                r_post = requests.get(ssilka_post)
-                html_post = BS(r_post.content, 'html.parser')
-                html_post_title = html_post.find('meta', itemprop='name')
-                html_post_text = html_post.find('meta', itemprop="articleBody")
-
-                if str(html_post_text) == 'None' or str(html_post_title) == 'None':
-                    prov_print()
-                else:
-                    con = sqlite3.connect('ParseNews.sqlite')
-                    cur = con.cursor()
-                    title_post = re.sub(r'\<[^>]*\>', '', str(html_post_title.attrs['content']))  # удаляем все лишние символы из текста
-                    text_post = re.sub(r'\<[^>]*\>', '', str(html_post_text.attrs['content']))
-                    cur.execute(f"""INSERT INTO '{self.current}' VALUES('{title_post}', '{text_post}')""")
-                    con.commit()
-                    con.close()
-                    self.listWidget.addItem(title_post)
-                    self.listWidget.update()
-
-            html = requests.get(city_url)
-            soup = BS(html.content, "html.parser")
-            script = soup.find_all('script', type="application/ld+json")[-1]   # JSON
-            my_json = str(script)[36:-10]
-            con1 = sqlite3.connect('ParseNews.sqlite')
-            cur1 = con1.cursor()
-            cur1.execute(f"""DELETE FROM '{self.current}'""")
-            con1.commit()
-            con1.close()
-            self.listWidget.clear()
+            city_url = ''
+            for city_parse in html.find_all('a', 'j-regions__link'):
+                if city_parse.contents[0].strip('\n') == self.city:
+                    city_url = 'https://news.rambler.ru' + city_parse.get('href') + '?updated'
+                    break
+            my_json = uploading_json(city_url, self.city, self.listWidget)
             for i in range(0, 5):
-                prov_print()
+                uploading_post(i, my_json, self.city, self.listWidget)
 
         except requests.exceptions.ConnectionError:
-            con1 = sqlite3.connect('ParseNews.sqlite')
-            cur1 = con1.cursor()
-            part = cur1.execute(f"""SELECT * FROM '{self.current}'""").fetchall()
-            if len(part) > 0:
+            con = sqlite3.connect('ParseNews.sqlite')
+            cur = con.cursor()
+            posts = cur.execute(f"""SELECT * FROM '{self.city}'""").fetchall()
+            if len(posts) > 0:
                 self.listWidget.clear()
-                for i in part:
+                for i in posts:
                     self.listWidget.addItem(i[0])
                 self.label_2.setText('Проверьте подключение к интернету!')
             else:
                 self.listWidget.clear()
                 self.textEdit.clear()
                 self.label_2.setText('Проверьте подключение к интернету!')
-            con1.commit()
-            con1.close()
+            con.commit()
+            con.close()
 
-    def choose_title_post(self):
+    def choose_post(self):
         try:
             title = self.listWidget.currentItem().text()
             con = sqlite3.connect('ParseNews.sqlite')
             cur = con.cursor()
-            text_post = cur.execute(f"""SELECT text_post from '{self.current}' WHERE title_post = '{title}'""").fetchone()
+            text_post = cur.execute(f"""SELECT text_post from '{self.city}' WHERE title_post = '{title}'""").fetchone()
             con.commit()
             con.close()
             self.textEdit.setText('')
@@ -154,64 +119,12 @@ class Ui_MainWindow(object):
 class MyWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        # Вызываем метод для загрузки интерфейса из класса Ui_MainWindow,
-        # остальное без изменений
         self.setupUi(self)
 
-# СТИЛИ К ВИДЖЕТАМ
-style = '''               
-    QFrame#horizontalFrame {
-        background-color: rgb(0, 0, 255);   
-    }
-    
-    QLabel#label{
-        color: white;
-    }
-    
-    QLabel#label_2{
-        font-size: 15px;
-        font-weight: bold;
-    }
-    
-    QComboBox {
-        background-color: blue;
-        font-size: 17px;
-        color: white;
-    }
-    
-    QPushButton#pushButton {
-        background-color: blue;
-        color: white;
-        font-size: 15px;
-    }
-    
-    QPushButton#pushButton_2 {
-        font-size: 15px;
-        font-weight: bold;
-    }
-    
-    QTextEdit{
-        font-size: 20px;    
-    }
-    
-    QListWidget {
-        background-color: rgb(204, 0, 2);
-        color: white;
-        font-size: 18px;
-    }
-
-    QLabel#label_3 {
-        background-image: url(soc.PNG);
-    }
-
-
-
-
-    '''
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    app.setStyleSheet(style)
+    app.setStyleSheet(style_css)
     ex = MyWidget()
     ex.show()
     sys.exit(app.exec_())
