@@ -35,6 +35,7 @@ def uploading_post(index, my_json, city, listWidget):
     if str(html_post_text) == 'None' or str(html_post_title) == 'None':
         uploading_post(index, my_json, city, listWidget)
     else:
+        # clearing the text from unnecessary characters
         title_post = re.sub(r'\<[^>]*\>', '',
                             str(html_post_title.attrs['content']))  # удаляем все лишние символы из текста
         text_post = re.sub(r'\<[^>]*\>', '', str(html_post_text.attrs['content']))

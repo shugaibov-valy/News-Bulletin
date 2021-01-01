@@ -83,7 +83,7 @@ class Ui_MainWindow(object):
                     city_url = 'https://news.rambler.ru' + city_parse.get('href') + '?updated'
                     break
             my_json = uploading_json(city_url, self.city, self.listWidget)
-            for i in range(0, 5):
+            for i in range(0, 5):   # uploading the first five posts
                 uploading_post(i, my_json, self.city, self.listWidget)
 
         except requests.exceptions.ConnectionError:
